@@ -58,25 +58,34 @@ abstract class Kohana_Azimauth {
 	 * @param   string   token POSTed to our script by RPX
 	 * @return  array   identifiers returned by RPX
 	 */
-    public function get_identifiers($token)
+    protected function _get_identifiers($token)
     {
-        $post_data = array
+        $options = array
         (
-            'token' => $token,
-             'apiKey' => $this->config['rpx_api_key'],
-             'format' => 'json'
-        );
-        $curl = curl_init();
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_URL, 'https://rpxnow.com/api/v2/auth_info');
-        curl_setopt($curl, CURLOPT_POST, true);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $post_data);
-        curl_setopt($curl, CURLOPT_HEADER, false);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-        $raw_json = curl_exec($curl);
-        curl_close($curl);
+            CURLOPT_RETURNTRANSFER => TRUE,
+            CURLOPT_POST => TRUE,
+            CURLOPT_POSTFIELDS => array
+            (
+                'token' => $token,
+                'apiKey' => $this->config['rpx_api_key'],
+                'format' => 'json'
+            ),
+            CURLOPT_HEADER => FALSE,
+            CURLOPT_SSL_VERIFYPEER => FALSE,
+        );        
 
-        $auth_info = json_decode($raw_json, true);
+        try
+        {
+            $raw_json = Remote::get('https://rpxnow.com/api/v2/auth_info', $options);
+        }
+        catch (Kohana_Exception $e)
+        {
+            // The CURL call to rpxnow had a problem. Do we need more visible messaging for this?
+            return FALSE;
+        }
+
+        $auth_info = json_decode($raw_json, TRUE);
+        
         if ($auth_info['stat'] == 'ok') {
             $profile = $auth_info['profile'];
             $identifiers = array
@@ -86,8 +95,9 @@ abstract class Kohana_Azimauth {
                 'email' => Arr::get($profile, 'email', NULL), // Optional
             );
             return $identifiers;
-        } else {
-			throw new Kohana_Azimauth_Exception($auth_info['err']['msg']);
+//        If there needs to be more visible messaging for a failure to validate, put it here.
+//        } else {
+//			throw new Kohana_Azimauth_Exception($auth_info['err']['msg']);
         }
     }
 
@@ -135,13 +145,16 @@ abstract class Kohana_Azimauth {
     }
 
 	/**
-	 * Uses the identifying information provided by RPX to load or create a corresponding user.
+	 * Uses the RPX-supplied token to get identifying information to load or create a corresponding user.
 	 *
-	 * @param   array   identifiers returned by RPX, particularly "identifier"
+	 * @param   array   the token RPX gave us for retrieving the user's identifier
 	 * @return  User
 	 */
-    public function identify($identifiers)
+    public function login($token)
     {
+        $identifiers = $this->_get_identifiers($token);
+        if (!$identifiers) return FALSE;
+        
 		$user = ORM::factory('user')
 		            ->where('identifier', "=", $identifiers['identifier'])
 		            ->find();
