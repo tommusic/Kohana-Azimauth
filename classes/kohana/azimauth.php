@@ -79,8 +79,8 @@ abstract class Kohana_Azimauth {
 		}
 		catch (Kohana_Exception $e)
 		{
-			// The CURL call to rpxnow had a problem. Do we need more visible messaging for this?
-			return FALSE;
+			// This means our server couldn't connect to their server. Log this and warn user.
+			throw new Azimauth_Exception("Something is technically wrong. We're looking into it!");
 		}
 
 		$auth_info = json_decode($raw_json, TRUE);
