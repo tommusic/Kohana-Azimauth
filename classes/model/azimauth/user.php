@@ -17,12 +17,42 @@ class Model_Azimauth_User extends ORM {
 			'trim'    		 => NULL,
 			'htmlspecialchars' => array(ENT_QUOTES),
 		),
+		'provider'    => array
+		(
+			'trim'    		 => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
 		'displayname'    => array
 		(
 			'trim'      => NULL,
 			'htmlspecialchars' => array(ENT_QUOTES),
 		),
 		'formattedname'    => array
+		(
+			'trim'      => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
+		'familyname'    => array
+		(
+			'trim'      => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
+		'givenname'    => array
+		(
+			'trim'      => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
+		'preferredusername'    => array
+		(
+			'trim'      => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
+		'url'    => array
+		(
+			'trim'      => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
+		'photo'    => array
 		(
 			'trim'      => NULL,
 			'htmlspecialchars' => array(ENT_QUOTES),

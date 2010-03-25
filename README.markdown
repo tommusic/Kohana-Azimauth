@@ -1,12 +1,10 @@
 # Azimauth
 
-An RPX-based authentication/authorization module for the [Kohana framework](http://kohanaphp.com/) (v3.0+). It borrows heavily from the official Kohana Auth module.
+An RPX-based authentication/authorization module for the [Kohana framework](http://kohanaphp.com/) (v3.0+). It borrows (very lightly) from the Kohana V3 Auth module.
 
-The RPX widget allows users to authenticate with various other services where they may already have an account. Users are sent to the site of their choice, asked to authorize your application to pull their information, and then returned to your site. The RPX widget sends back a token that you use as part of a cURL request back to RPX for the user's identifying information.
+[Janrain's RPX service](https://rpxnow.com/) allows users to authenticate for your site using their account on another service. For example, someone may choose to have GMail or LiveJournal vouch that they are a real person. GMail or LiveJournal would then send back a response to your site identifying the user and validating that they have an account.
 
-For a user that authenticates successfully, RPX will supply an "identifier" string that should be used to represent the user in your application.
-
-If the user hasn't been seen before, this module creates an account for them. If the user has an account already, that account is loaded.
+The great part about this is that you can skip asking users to create an account on your site. You won't be their first internet account; if they can just login using their Facebook account, they'll get started enjoying your site faster.
 
 ## Quick Start
 
