@@ -4,7 +4,7 @@ An RPX-based authentication/authorization module for the [Kohana framework](http
 
 [Janrain's RPX service](https://rpxnow.com/) allows users to authenticate for your site using their account on another service. For example, someone may choose to have GMail or LiveJournal vouch that they are a real person. GMail or LiveJournal would then send back a response to your site identifying the user and validating that they have an account.
 
-The great part about this is that you can skip asking users to create an account on your site. You won't be their first internet account; if they can just login using their Facebook account, they'll get started enjoying your site faster.
+The great part about this is that you can skip asking users to create an account on your site. Your site won't be the first one they ever use, and if they can just login using their (i.e.) Facebook account, they'll get started enjoying your site faster.
 
 ## Quick Start
 
@@ -77,7 +77,7 @@ The Azimauth module has a few conventions hard-wired at the moment:
 
 ## Database tables
 
-Here's how you'll get your DB tables set up for this:
+Here's how you'll get your DB tables set up for this. Note that if you want to store some of the additional fields retrieved from authorization requests, you simply need to add the properly named field to the 'users' table!
 
     CREATE TABLE `roles` (
       `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
