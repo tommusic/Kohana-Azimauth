@@ -87,12 +87,22 @@ abstract class Kohana_Azimauth {
     
 		if ($auth_info['stat'] == 'ok')
 		{
-			$profile = $auth_info['profile'];
+			$profile_data = $auth_info['profile'];
+			$name_data = Arr::get($profile_data, 'name', array());
 			$identifiers = array
 			(
-				'identifier' => $profile['identifier'], // Guaranteed to be present
-				'displayname' => Arr::get($profile, 'displayName', NULL), // Optional
-				'email' => Arr::get($profile, 'email', NULL), // Optional
+				'identifier' => $profile_data['identifier'], // Guaranteed to be present
+				'provider' => Arr::get($profile_data, 'providerName', NULL), // Optional
+
+				'displayname' => Arr::get($profile_data, 'displayName', NULL), // Optional
+				'formattedname' => Arr::get($name_data, 'formatted', NULL), // Optional
+				'familyname' => Arr::get($name_data, 'familyName', NULL), // Optional
+				'givenname' => Arr::get($name_data, 'givenName', NULL), // Optional
+				'preferredusername' => Arr::get($profile_data, 'preferredUsername', NULL), // Optional
+
+				'email' => Arr::get($profile_data, 'email', NULL), // Optional
+				'url' => Arr::get($profile_data, 'url', NULL), // Optional
+				'photo' => Arr::get($profile_data, 'photo', NULL), // Optional
 			);
 			return $identifiers;
 // If there needs to be more visible messaging for a failure to validate, put it here.
@@ -160,10 +170,11 @@ abstract class Kohana_Azimauth {
 							->find();
 		if (!$user->loaded())
 		{
-			$user = ORM::factory('user');
-			$user->identifier = Arr::get($identifiers, 'identifier', NULL);
-			$user->displayname = Arr::get($identifiers, 'displayname', NULL);
-			$user->email = Arr::get($identifiers, 'email', NULL);
+			$user = ORM::factory('user')
+				->values($identifiers);
+//			$user->identifier = Arr::get($identifiers, 'identifier', NULL);
+//			$user->displayname = Arr::get($identifiers, 'displayname', NULL);
+//			$user->email = Arr::get($identifiers, 'email', NULL);
 			if ($user->check())
 			{
 				$user->save();

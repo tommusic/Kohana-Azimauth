@@ -22,6 +22,11 @@ class Model_Azimauth_User extends ORM {
 			'trim'      => NULL,
 			'htmlspecialchars' => array(ENT_QUOTES),
 		),
+		'formattedname'    => array
+		(
+			'trim'      => NULL,
+			'htmlspecialchars' => array(ENT_QUOTES),
+		),
 		'email'    => array
 		(
 			'trim'      => NULL,
