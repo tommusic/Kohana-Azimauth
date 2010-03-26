@@ -16,6 +16,7 @@ class Controller_Azimauth extends Controller_Template {
 			$this->template->scripts = array();
 		}
 		$this->user = Azimauth::instance()->get_user();
+		$this->template->user = $this->user;
 	}
 
 	public function after()
