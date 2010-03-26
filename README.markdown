@@ -10,22 +10,12 @@ The great part about this is that you can skip asking users to create an account
 
 Once enabled, the simplest usage of this module would happen in a controller like this one:
 
-    class Controller_Sessions extends Controller {
+    class Controller_Sessions extends Controller_Azimauth {
+    	public $template = 'templates/base';
+
 		public function action_index()
 		{
-	        if ($user = Azimauth::instance()->get_user())
-	        {
-	            echo "Identifier: " . $user->identifier . "<br />";
-	            echo "Display Name: " . $user->displayname . "<br />";
-	            echo "Is Admin: " . $user->has_role('admin') . "<br />";
-	            echo "Can Login: " . $user->has_role('login') . "<br />";
-	        }
-	        else
-	        {
-	            echo "<p>No user detected!</p>";
-	            echo View::factory('azimauth/link');
-	            echo View::factory('azimauth/script');
-	        }
+    		$this->template->content = View::factory('userinfo')->set('user', $this->user);
 		}
 	
 		public function action_create()
@@ -51,6 +41,8 @@ Once enabled, the simplest usage of this module would happen in a controller lik
 	        Request::instance()->redirect('/');
 		}
     }
+
+The "userinfo" view would likely present differential information depending on whether isset($user), which is essentially a check for whether or not we have a logged-in user.
 
 ## Methods
 
