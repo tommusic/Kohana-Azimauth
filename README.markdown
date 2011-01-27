@@ -6,6 +6,8 @@ An RPX-based authentication/authorization module for the [Kohana framework](http
 
 The great part about this is that you can skip asking users to create an account on your site. Your site won't be the first one they ever use, and if they can just login using their (i.e.) Facebook account, they'll get started enjoying your site faster.
 
+Actually, some users prefer to create a username and password. To log in natively. Let's make it so they can! Stay tuned.
+
 ## Quick Start
 
 Once enabled, the simplest usage of this module would happen in a controller like this one:
