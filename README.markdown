@@ -1,73 +1,105 @@
 # Azimauth
 
-An RPX-based authentication/authorization module for the [Kohana framework](http://kohanaphp.com/) (v3.0+). It borrows (very lightly) from the Kohana V3 Auth module.
 
-[Janrain's RPX service](https://rpxnow.com/) allows users to authenticate for your site using their account on another service. For example, someone may choose to have GMail or LiveJournal vouch that they are a real person. GMail or LiveJournal would then send back a response to your site identifying the user and validating that they have an account.
+## What is it?
 
-The great part about this is that you can skip asking users to create an account on your site. Your site won't be the first one they ever use, and if they can just login using their (i.e.) Facebook account, they'll get started enjoying your site faster.
+Azimauth is an RPX-based authentication/authorization module for the [Kohana PHP framework](http://kohanaframework.org/). I've developed and implemented it using v3.09 of Kohana, and haven't tried it on v3.1+ yet.
 
-## Quick Start
+[Janrain's RPX service](https://rpxnow.com/) allows users to authenticate for your site using their account on another service. For example, someone may choose to have GMail or LiveJournal handle their authorization credentials. GMail or LiveJournal would then send back a response to your site identifying the user and validating that they have an account.
 
-Once enabled, the simplest usage of this module would happen in a controller like this one:
+The great part about this is that you can skip asking users to create an account on your site. If they already have an account with any of the providers that you make available, they can login immediately.
 
-    class Controller_Sessions extends Controller_Azimauth {
-    	public $template = 'templates/base';
+## How does it work?
 
-		public function action_index()
-		{
-    		$this->template->content = View::factory('userinfo')->set('user', $this->user);
-		}
-	
-		public function action_create()
-		{
-	        if ($_POST)
-	        {
-	            if(isset($_POST['token']))
-	            {
-	                if ($user = Azimauth::instance()->login($_POST['token']))
-	                {
-	                    Request::instance()->redirect('/sessions');
-	                }
-	            }
-	            echo "<p>An error occurred when logging you in. Please try again.</p>";
-	        }
-	        echo View::factory('azimauth/link');
-	        echo View::factory('azimauth/script');
-		}
+Logging in using RPX is simple. The user clicks a button on your site that pops up the RPX login interface. After they've picked a service and authenticated themselves, RPX will POST a handshake token to a URL on your site. The controller you create that handles that URL will use that token to connect and retrieve the rest of the user's authentication information from RPX.
 
-		public function action_destroy()
-		{
-	        Azimauth::instance()->logout();
-	        Request::instance()->redirect('/');
-		}
+## Configuration
+
+Configuration settings for this module live in `config/azimauth.php`.
+
+    return array
+    (
+
+The length of time that the authentication token should stay valid before the user needs to re-authenticate:
+
+    	'lifetime' => 1209600,
+    	
+The key names under which to store the authentication token in the cookie and in the session:
+
+    	'cookie_key' => 'azimauth_token',
+    	'session_key' => 'azimauth_token',
+
+The type of session you want to use for storing authentication data:
+
+    	'session_type' => 'database',
+    	
+The API key that RPX provides for you, which can be found on your control panel at RPXNow.com:    	
+    	
+    	'rpx_api_key' => '',
+
+The URL to which RPX should POST the handshake token:
+
+    	'rpx_token_url' => URL::base(FALSE, TRUE) . 'sessions/create',
+
+For security purposes, RPX provides a subdomain for each API account. Paste yours here, including the rest of the RPX domain name.
+
+    	'rpx_domain' => '',
+    );
+
+
+Now, let's see some code.
+
+## Common Usage
+
+Get the currently logged-in user, or NULL if no user is logged in:
+
+    $user = Azimauth::instance()->get_user();
+
+Log-in a user (from the controller that receives the POST-back token from RPX), or get an exception if logging in fails:
+
+    try {
+        $user = Azimauth::instance()->login($rpx_token);
+    } catch (Azimauth_Exception $e) {
+        echo 'Caught exception: ',  $e->getMessage(), "\n";
     }
+    
+Log-out the current user:
 
-The "userinfo" view would likely present differential information depending on whether isset($user), which is essentially a check for whether or not we have a logged-in user.
+    $user = Azimauth::instance()->logout();
 
-## Methods
+## Additional Requirements
 
-The key methods of the module:
+All of the references to returning something to be stored in `$user` in the last section refer to the Azimauth_User model that is included with the module. *This model inherits from ORM, and expects a table named `users` in your database.*
 
-* login($token)
+You're welcome to put as many extra columns into that table as you'd like, and build your own `User` model that uses that table and handles everything other than authentication. User profiles, user-to-object relationships, the sky is the limit. When you need to do anything specific to authentication, `Azimauth_User` will be there waiting for you.
 
-Uses the token that RPX sends back to retrieve the user's identifying information. Returns the user if successful, or FALSE otherwise.
+## Interface Additions
 
-* get_user()
+A few interface elements will be needed to make Azimauth functional on your site. You can get both of these from the "Sign-In for Websites" link on the RPXNow control panel for your application. Go through the steps with the "Generate Code" button and you'll get the pieces you need.
 
-If the session or cookie have user_tokens stored to auto-login a user, return them. Otherwise, return FALSE.
+If you choose to have the RPX widget embedded, you'll have some IFrame code to paste where you want it to appear. It'll look something like this:
 
-* login()
+    <iframe src="http://example-website.rpxnow.com/openid/embed?token_url=http%3A%2F%2Fexamplewebsite.com%2Flogin" scrolling="no" frameBorder="no" allowtransparency="true" style="width:400px;height:240px"></iframe>
+    
+If you choose to have a modal overlay dialog appear, you'll get two chunks of code. First, a Javascript include that looks like this:
 
-Clear out the session and cookie user_tokens to remove the user.
+    <script type="text/javascript">
+      var rpxJsHost = (("https:" == document.location.protocol) ? "https://" : "http://static.");
+      document.write(unescape("%3Cscript src='" + rpxJsHost +
+    "rpxnow.com/js/lib/rpx.js' type='text/javascript'%3E%3C/script%3E"));
+    </script>
+    <script type="text/javascript">
+      RPXNOW.overlay = true;
+      RPXNOW.language_preference = 'en';
+    </script>
 
-## Conventions
+And a sign-in link that will look like this:
 
-The Azimauth module has a few conventions hard-wired at the moment:
+    <a class="rpxnow" onclick="return false;" href="https://example-website.rpxnow.com/openid/v2/signin?token_url=http%3A%2F%2Fexamplewebsite.com%2Flogin"> Sign In </a>
 
-* You must have ORM enabled; Azimauth uses this for the models involved
-* Sessions are forced to live in the DB (you might change this, but I prefer it)
+Hopefully it's obvious where your code will look differently than these examples. And you'll probably only want to display the sign-in link when there isn't a logged-in user.
 
-## Database tables
+## Database tables (working on this)
 
 Here's how you'll get your DB tables set up for this. Note that if you want to store some of the additional fields retrieved from authorization requests, you simply need to add the properly named field to the 'users' table!
 
