@@ -1,55 +1,54 @@
 <?php defined('SYSPATH') OR die('No direct access allowed.');
 /**
- * Handles authorization of users using RPXNow
+ * Azimauth is an authentication system to use with Janrain's RPX service.
  *
  * @package    Azimauth
- * @author     Tom Music (based on Auth by Kohana Team)
+ * @category   Base
+ * @author     Tom Music <tommusic@tommusic.net>
+ * @copyright  (c) 2011 Tom Music
+ * @license    MIT
  */
-abstract class Kohana_Azimauth {
+class Azimauth_Auth {
 
-	// Azimauth instances
+	/**
+	 * @param  Azimauth
+	 */
 	protected static $instance;
 
+	/**
+	 * Get the Azimauth instance. If the instance has not yet been created,
+	 * a new instance will be created and returned.
+	 *
+	 * @return  Azimauth
+	 */
 	public static function instance()
 	{
 		if ( ! isset(Azimauth::$instance))
 		{
 			// Load the configuration for this type
-			$config = Kohana::config('azimauth');
+			$configuration = Kohana::config('azimauth');
 
 			// Create a new session instance
-			Azimauth::$instance = new Azimauth($config);
+			Azimauth::$instance = new Azimauth($configuration);
 		}
 
 		return Azimauth::$instance;
 	}
 
 	/**
-	 * Create an instance of Azimauth.
-	 *
-	 * @return  object
+	 * @param  array  configuration settings
 	 */
-	public static function factory($config = array())
-	{
-		return new Azimauth($config);
-	}
-
-	protected $session;
-
-	protected $config;
-
-	protected $user = NULL;
+	public $config = array();
 
 	/**
-	 * Loads Session and configuration options.
+	 * Apply configuration.
 	 *
-	 * @return  void
+	 * @param  array  configuration settings
 	 */
-	public function __construct($config = array())
+	public function __construct(array $config = array())
 	{
 		$this->config = $config;
-		$this->session = Session::instance($config['session_type']);
-	}
+    }
 
 	/**
 	 * Uses the token returned from an RPX call to retrieve identifiers for the user.
@@ -212,30 +211,29 @@ abstract class Kohana_Azimauth {
 		}
 	}
 
+
 	/**
-	 * Clears the session and cookie of tokens, and deletes the tokens from the DB.
+	 * If a valid login token exists in the cookie, delete it from the DB.
 	 *
+	 * If $logout_all is TRUE, and the current token is valid, remove all tokens
+	 * for this user from the DB.
+	 *
+     * @param   boolean     remove all tokens for this user
 	 * @return  void
 	 */
-	public function logout()
+	public function logout($logout_all = FALSE)
 	{
-		$session_token = $this->session->get($this->config['session_key']);
-		$cookie_token = cookie::get($this->config['cookie_key']);
-
-		if ($session_token)
-		{
-			$this->session->delete($this->config['session_key']);
-			$this->session->regenerate();
-			$token = ORM::factory('user_token', array('token' => $session_token));
-			if ($token->loaded()) $token->delete();
+		if ($cookie_token_value = cookie::get($this->config['cookie_key'])) {
+			$token = ORM::factory('user_token', array('token' => $cookie_token_value));
 		}
 
-		if ($cookie_token)
-		{
-			cookie::delete($this->config['cookie_key']);
-			$token = ORM::factory('user_token', array('token' => $cookie_token));
-			if ($token->loaded()) $token->delete();
-		}
+        if ($token->loaded()) {
+            if ($logout_all) {
+                $result = ORM::factory('user', $token->user_id)->tokens->delete_all();
+            } else {
+                $result = $token->delete();
+            }
+        }
 	}
     
 } // End Azimauth

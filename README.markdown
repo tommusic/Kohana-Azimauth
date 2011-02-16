@@ -7,11 +7,17 @@ Azimauth is an RPX-based authentication/authorization module for the [Kohana PHP
 
 [Janrain's RPX service](https://rpxnow.com/) allows users to authenticate for your site using their account on another service. For example, someone may choose to have GMail or LiveJournal handle their authorization credentials. GMail or LiveJournal would then send back a response to your site identifying the user and validating that they have an account.
 
-The great part about this is that you can skip asking users to create an account on your site. If they already have an account with any of the providers that you make available, they can login immediately.
+The great part about this is that you can skip asking users to create an account on your site. If they already have an account with any of the providers that you make available, they can login immediately. There is never any need for your site to handle changing or resetting passwords.
 
-## How does it work?
+## A quick overview
 
-Logging in using RPX is simple. The user clicks a button on your site that pops up the RPX login interface. After they've picked a service and authenticated themselves, RPX will POST a handshake token to a URL on your site. The controller you create that handles that URL will use that token to connect and retrieve the rest of the user's authentication information from RPX.
+The user will click a button or link on your site (i.e. "Login") that will present them with the RPX login interface. This interface will have one or more services (e.g. Facebook, Yahoo, Gmail, OpenID) through which they can authenticate.
+
+Once the user has authenticated with their choice of provider, RPX will send an identifier back to your site. This gets stored in the database, and is essentially a username (though the user will never see it or be asked to type it). You'll receive this same identifier each time the user authenticates with a third-party via RPX, and they should be unique.
+
+When the user is authenticated, a token is stored in the cookie for your site that allows them to stay logged-in until they choose to log out. There are no "Remember Me" checkboxes. You may provide the user the option to log out of only this computer, or from all computers in which they are logged in.
+
+Let's get to setting this up...
 
 ## Configuration
 
@@ -20,32 +26,18 @@ Configuration settings for this module live in `config/azimauth.php`.
     return array
     (
 
-The length of time that the authentication token should stay valid before the user needs to re-authenticate:
+The length of time that the authentication token should stay valid before the user needs to re-authenticate, 60 (seconds) * 60 (minutes) * 24 (hours) * 120 (days) = 10368000 seconds:
 
-    	'lifetime' => 1209600,
+    	'lifetime' => 10368000,
     	
-The key names under which to store the authentication token in the cookie and in the session:
+The key name under which to store the authentication token in the cookie:
 
-    	'cookie_key' => 'azimauth_token',
-    	'session_key' => 'azimauth_token',
+    	'cookie_key' => 'login_token',
 
-The type of session you want to use for storing authentication data:
-
-    	'session_type' => 'database',
-    	
 The API key that RPX provides for you, which can be found on your control panel at RPXNow.com:    	
     	
-    	'rpx_api_key' => '',
-
-The URL to which RPX should POST the handshake token:
-
-    	'rpx_token_url' => URL::base(FALSE, TRUE) . 'sessions/create',
-
-For security purposes, RPX provides a subdomain for each API account. Paste yours here, including the rest of the RPX domain name.
-
-    	'rpx_domain' => '',
+    	'rpx_api_key' => 'API_KEY_GOES_HERE',
     );
-
 
 Now, let's see some code.
 
@@ -63,9 +55,13 @@ Log-in a user (from the controller that receives the POST-back token from RPX), 
         echo 'Caught exception: ',  $e->getMessage(), "\n";
     }
     
-Log-out the current user:
+Log-out the current user on this computer:
 
     $user = Azimauth::instance()->logout();
+
+Log-out the current user on all computers:
+
+    $user = Azimauth::instance()->logout(TRUE);
 
 ## Additional Requirements
 
