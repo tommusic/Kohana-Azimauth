@@ -52,18 +52,17 @@ The result of this will be a User model object. You can check if there is a logg
 Logging in a user tends to be done in a controller action that is designated to receive POST data from the RPX service. That controller might have some code that looks like this:
 
     if ($_POST)	{
-        $rpx_token = Arr::get($_POST, 'token', '');
-        if ($rpx_token != '')
-            $user = Azimauth::instance()->login($rpx_token);
+        try
+        {
+            $user = Azimauth::instance()->login(Arr::get($_POST, 'token', ''));
+        }
+        catch (Azimauth_Exception $e)
+        {
+            Kohana::$log->add('LOGIN ERROR', $e->getMessage());
+        }
     }
 
-    try {
-        $user = Azimauth::instance()->login($rpx_token);
-    } catch (Azimauth_Exception $e) {
-        echo 'Caught exception: ',  $e->getMessage(), "\n";
-    }
-
-If the login executes successfully, `$user` will be set to the currently active user. So too will `Azimauth::instance()->user`.
+If the login executes successfully, `$user` will be set to the currently active user. So too will `Azimauth::instance()->user`. If it fails, an exception will be raised. The code above logs this exception, but it is up to you to determine what sort of error you want to report to the user.
 
 And finally, to log out a user:
 

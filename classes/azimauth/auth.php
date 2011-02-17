@@ -146,8 +146,9 @@ class Azimauth_Auth {
 	 */
 	public function login($token)
 	{
+	    if ($token == '') throw new Azimauth_Exception('RPX token was empty or did not exist in POST data');
+
 	    $user_details = $this->_get_identifiers($token);
-        
 		$user = ORM::factory('user', $user_details['identifier']);
 
         // If the user doesn't exist in the DB yet, create it.
