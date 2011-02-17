@@ -43,23 +43,35 @@ Now, let's see some code.
 
 ## Common Usage
 
-Get the currently logged-in user, or NULL if no user is logged in:
+Getting the instance of Azimauth automatically checks if the user is logged-in.
 
-    $user = Azimauth::instance()->get_user();
+    $user = Azimauth::instance()->user;
+    
+The result of this will be a User model object. You can check if there is a logged-in user by looking at the state of `$user->loaded()`. If it's TRUE, there is a logged-in user. If FALSE, no logged-in user. Simple.
 
-Log-in a user (from the controller that receives the POST-back token from RPX), or get an exception if logging in fails:
+Logging in a user tends to be done in a controller action that is designated to receive POST data from the RPX service. That controller might have some code that looks like this:
+
+    if ($_POST)	{
+        $rpx_token = Arr::get($_POST, 'token', '');
+        if ($rpx_token != '')
+            $user = Azimauth::instance()->login($rpx_token);
+    }
 
     try {
         $user = Azimauth::instance()->login($rpx_token);
     } catch (Azimauth_Exception $e) {
         echo 'Caught exception: ',  $e->getMessage(), "\n";
     }
-    
-Log-out the current user on this computer:
+
+If the login executes successfully, `$user` will be set to the currently active user. So too will `Azimauth::instance()->user`.
+
+And finally, to log out a user:
 
     $user = Azimauth::instance()->logout();
 
-Log-out the current user on all computers:
+The result of this should be that `$user` gets set to an empty User model object.
+
+Similarly, to log-out the current user on *all* computers:
 
     $user = Azimauth::instance()->logout(TRUE);
 

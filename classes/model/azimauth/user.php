@@ -2,12 +2,15 @@
 
 class Model_Azimauth_User extends ORM {
 
+    protected $_primary_key = 'identifier';
+
 	// Relationships
-	protected $_has_many = array
-	(
-		'user_tokens' => array('model' => 'user_token'),
-		'roles'       => array('model' => 'role', 'through' => 'roles_users'),
-	);
+    protected $_has_many = array(
+        'tokens' => array(
+            'model' => 'user_token',
+            'foreign_key' => 'identifier'
+        )
+    );
 
 	// Filters
 	protected $_filters = array
@@ -17,7 +20,7 @@ class Model_Azimauth_User extends ORM {
 			'trim'    		 => NULL,
 			'htmlspecialchars' => array(ENT_QUOTES),
 		),
-		'provider'    => array
+/*		'provider'    => array
 		(
 			'trim'    		 => NULL,
 			'htmlspecialchars' => array(ENT_QUOTES),
@@ -60,10 +63,10 @@ class Model_Azimauth_User extends ORM {
 		'email'    => array
 		(
 			'trim'      => NULL,
-		),
+		), */
 	);
 
-	// Rules
+	// Validation rules
 	protected $_rules = array
 	(
 		'identifier'		=> array
@@ -72,7 +75,7 @@ class Model_Azimauth_User extends ORM {
 			'min_length'		=> array(4),
 			'max_length'		=> array(256),
 		),
-		'displayname'		=> array
+/*		'displayname'		=> array
 		(
 			'max_length'		=> array(256),
 		),
@@ -80,25 +83,7 @@ class Model_Azimauth_User extends ORM {
 		(
 			'validate::email'		=> NULL,
 			'max_length'		=> array(256),
-		),
+		), */
 	);
-
-	/**
-	 * Convenience function to check this user for permissions.
-	 *
-	 * @param  string   role to check for
-	 * @return boolean
-	 */
-	public function has_role($role)
-	{
-		if ($this->loaded())
-		{
-			if ($this->has('roles', ORM::factory('role', array('name' => $role))))
-			{
-				return TRUE;
-			}
-		}
-		return FALSE;
-	}
 
 } // End Azimauth User Model

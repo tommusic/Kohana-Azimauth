@@ -2,9 +2,11 @@
 
 class Model_Azimauth_User_Token extends ORM {
 
-	// Relationships
-	protected $_belongs_to = array('user' => array());
+    protected $_primary_key = 'token';
 
+	// Relationships
+    protected $_belongs_to = array('user' => array('model' => 'user', 'foreign_key' => 'identifier'));
+	
 	// Current timestamp
 	protected $_now;
 

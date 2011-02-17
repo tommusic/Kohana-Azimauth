@@ -26,9 +26,9 @@ class Azimauth_Auth {
 		if ( ! isset(Azimauth::$instance))
 		{
 			// Load the configuration for this type
-			$configuration = Kohana::config('azimauth');
+			$configuration = Kohana::config('azimauth')->as_array();
 
-			// Create a new session instance
+			// Create a new Azimauth instance
 			Azimauth::$instance = new Azimauth($configuration);
 		}
 
@@ -41,19 +41,47 @@ class Azimauth_Auth {
 	public $config = array();
 
 	/**
-	 * Apply configuration.
+	 * Apply configuration and load current user, if applicable.
 	 *
 	 * @param  array  configuration settings
 	 */
 	public function __construct(array $config = array())
 	{
 		$this->config = $config;
+		$this->user = $this->_get_user();
     }
+
+	/**
+	 * @param  User  the currently logged-in user
+	 */
+	public $user;
+
+	/**
+	 * Checks the cookie for a valid token, and returns the user if applicable.
+	 * Returns a blank user object if no user is currently logged-in.
+	 *
+	 * @return  User
+	 */
+	protected function _get_user()
+	{
+		$cookie_token = Cookie::get($this->config['cookie_key']);
+
+		if ($cookie_token) {
+			$token = ORM::factory('user_token', $cookie_token);
+			if ($token->loaded()) {
+				if ($token->user->loaded())	{
+					return $token->user;
+				}
+			}
+		}
+		
+        return ORM::factory('user');
+	}
 
 	/**
 	 * Uses the token returned from an RPX call to retrieve identifiers for the user.
 	 *
-	 * @param   string   token POSTed to our script by RPX
+	 * @param   string   token POSTed to the site by RPX
 	 * @return  array   identifiers returned by RPX
 	 */
 	protected function _get_identifiers($token)
@@ -104,52 +132,8 @@ class Azimauth_Auth {
 				'photo' => Arr::get($profile_data, 'photo', NULL), // Optional
 			);
 			return $identifiers;
-// If there needs to be more visible messaging for a failure to validate, put it here.
-//		} else {
-//			throw new Kohana_Azimauth_Exception($auth_info['err']['msg']);
-		}
-	}
-
-	/**
-	 * Checks the session and cookie for valid tokens with which to load and return a user.
-	 *
-	 * @return  User
-	 */
-	public function get_user()
-	{
-		if (!$this->user)
-		{
-			$session_token = $this->session->get($this->config['session_key']);
-			$cookie_token = cookie::get($this->config['cookie_key']);
-
-			$token = ORM::factory('user_token');
-
-			if ($session_token)
-			{
-			$token = ORM::factory('user_token')
-								->where('token', "=", $session_token)
-								->find();
-			}
-
-			if ((!$token->loaded()) AND ($cookie_token))
-			{
-				$token = ORM::factory('user_token')
-									->where('token', "=", $cookie_token)
-									->find();
-			}
-
-			if ($token->loaded())
-			{
-				if ($token->user->loaded())
-				{
-					$this->user = $token->user;
-					return $this->user;
-				}
-			}
-		}
-		else
-		{
-			return $this->user;
+		} else {
+			throw new Azimauth_Exception($auth_info['err']['msg']);
 		}
 	}
 
@@ -161,56 +145,52 @@ class Azimauth_Auth {
 	 */
 	public function login($token)
 	{
-		$identifiers = $this->_get_identifiers($token);
-		if (!$identifiers) return FALSE;
+        try
+        {
+		    $user_details = $this->_get_identifiers($token);
+        }
+        catch (Azimauth_Exception $e)
+        {
+            // Should this exception just ripple upward too?
+            die($e->getMessage());
+        }
         
-		$user = ORM::factory('user')
-							->where('identifier', "=", $identifiers['identifier'])
-							->find();
+		$user = ORM::factory('user', $user_details['identifier']);
+
+        // If the user doesn't exist in the DB yet, create it.
 		if (!$user->loaded())
 		{
-			$user = ORM::factory('user')
-				->values($identifiers);
-//			$user->identifier = Arr::get($identifiers, 'identifier', NULL);
-//			$user->displayname = Arr::get($identifiers, 'displayname', NULL);
-//			$user->email = Arr::get($identifiers, 'email', NULL);
+			$user = ORM::factory('user')->values($user_details);
 			if ($user->check())
 			{
 				$user->save();
-				$user->add('roles', ORM::factory('role', array('name' => 'login')));
+			} else {
+    			throw new Azimauth_Exception('invalid_identifier');
 			}
 		}
 
+        // Update the login count for this user, and then create/store a login token.
 		if ($user->loaded())
 		{
-			if ($user->has('roles', ORM::factory('role', array('name' => 'login'))))
-			{
-				$user->login_count++;
-				$user->last_login = time();
-				$user->save();
+			$user->login_count++;
+			$user->last_login = time();
+			$user->save();
+			$this->user = $user;
 
-				$token = ORM::factory('user_token');
-				$token->user = $user;
-				$token->expires = time() + $this->config['lifetime'];
-				$token->save();
-        		
-				cookie::set($this->config['cookie_key'], $token->token, $this->config['lifetime']);
-				$this->session->regenerate();
-				$_SESSION[$this->config['session_key']] = $token;
+			$token = ORM::factory('user_token');
+			$token->user = $user;
+			$token->expires = time() + $this->config['lifetime'];
+			$token->save();
+    		
+			Cookie::set($this->config['cookie_key'], $token->token, $this->config['lifetime']);
 
-				return $user;
-			}
-			else
-			{
-				throw new Kohana_Azimauth_Exception('banned_identifier');
-			}
+            return $this->user;
 		}
 		else
 		{
-			throw new Kohana_Azimauth_Exception('invalid_identifier');
+			throw new Azimauth_Exception('invalid_identifier');
 		}
 	}
-
 
 	/**
 	 * If a valid login token exists in the cookie, delete it from the DB.
@@ -219,20 +199,26 @@ class Azimauth_Auth {
 	 * for this user from the DB.
 	 *
      * @param   boolean     remove all tokens for this user
-	 * @return  void
+	 * @return  User        this should always be a brand-new user object
 	 */
 	public function logout($logout_all = FALSE)
 	{
-		if ($cookie_token_value = cookie::get($this->config['cookie_key'])) {
-			$token = ORM::factory('user_token', array('token' => $cookie_token_value));
-		}
-
-        if ($token->loaded()) {
-            if ($logout_all) {
-                $result = ORM::factory('user', $token->user_id)->tokens->delete_all();
-            } else {
-                $result = $token->delete();
-            }
+        if ($this->user) {
+    		if ($cookie_token = Cookie::get($this->config['cookie_key'])) {
+    			Cookie::delete($this->config['cookie_key']);
+    			$token = ORM::factory('user_token', $cookie_token);
+                if ($token->loaded()) {
+                    if ($logout_all) {
+                        $result = ORM::factory('user_token')
+                                    ->where('identifier', '=', $token->identifier)
+                                    ->delete_all();
+                    } else {
+                        $result = $token->delete();
+                    }
+                }
+    		}
+            $this->user = ORM::factory('user');
+            return $this->user;
         }
 	}
     
