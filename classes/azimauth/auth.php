@@ -106,8 +106,9 @@ class Azimauth_Auth {
 		}
 		catch (Kohana_Exception $e)
 		{
-			// This means our server couldn't connect to their server. Log this and warn user.
-			throw new Azimauth_Exception("Something is technically wrong. We're looking into it!");
+			// There was a problem using our POSTback token to get user details from the server.
+			// The user has not been logged-in successfully, and we need to display an appropriate error.
+			throw new Azimauth_Exception("Error during cURL to RPX for identifiers");
 		}
 
 		$auth_info = json_decode($raw_json, TRUE);
@@ -133,7 +134,7 @@ class Azimauth_Auth {
 			);
 			return $identifiers;
 		} else {
-			throw new Azimauth_Exception($auth_info['err']['msg']);
+			throw new Azimauth_Exception('RPX says "' . $auth_info['err']['msg'] . '"');
 		}
 	}
 
@@ -145,15 +146,7 @@ class Azimauth_Auth {
 	 */
 	public function login($token)
 	{
-        try
-        {
-		    $user_details = $this->_get_identifiers($token);
-        }
-        catch (Azimauth_Exception $e)
-        {
-            // Should this exception just ripple upward too?
-            die($e->getMessage());
-        }
+	    $user_details = $this->_get_identifiers($token);
         
 		$user = ORM::factory('user', $user_details['identifier']);
 
@@ -165,7 +158,7 @@ class Azimauth_Auth {
 			{
 				$user->save();
 			} else {
-    			throw new Azimauth_Exception('invalid_identifier');
+    			throw new Azimauth_Exception('New user details failed to validate');
 			}
 		}
 
@@ -188,7 +181,7 @@ class Azimauth_Auth {
 		}
 		else
 		{
-			throw new Azimauth_Exception('invalid_identifier');
+			throw new Azimauth_Exception('The returned identifier was not found in the DB');
 		}
 	}
 
@@ -203,7 +196,7 @@ class Azimauth_Auth {
 	 */
 	public function logout($logout_all = FALSE)
 	{
-        if ($this->user) {
+        if ($this->user->loaded()) {
     		if ($cookie_token = Cookie::get($this->config['cookie_key'])) {
     			Cookie::delete($this->config['cookie_key']);
     			$token = ORM::factory('user_token', $cookie_token);
