@@ -49,7 +49,7 @@ class Azimauth_Auth {
 	{
 		$this->config = $config;
 		$this->user = $this->_get_user();
-        if ($this->user->login_enabled != 1) {
+        if ($this->user->is_enabled != 1) {
             $this->logout(TRUE);
         }
     }
@@ -190,12 +190,13 @@ class Azimauth_Auth {
 			} else {
     			throw new Azimauth_Exception('New user details failed to validate');
 			}
+    		$user = ORM::factory('user', $user_details['identifier']);
 		}
 
         // Update the login count for this user, and then create/store a login token.
 		if ($user->loaded())
 		{
-            if ($user->login_enabled == '1') {
+            if ($user->is_enabled == '1') {
     			$user->login_count++;
     			$user->last_login = time();
     			$user->save();

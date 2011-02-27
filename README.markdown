@@ -15,7 +15,7 @@ Before we move on: Azimauth requires the `Database` and `ORM` modules. You can u
 
 The user clicks a "Login" link on your site and is presented with buttons for each service that they can use to login. You can pick what services are in this list.
 
-Once the user has authenticated with their choice of provider, RPX will send an identifier back to your site. This gets stored in the database, and is essentially a username (though it is ugly, so the user should never see it or be asked to type it). You'll receive this same identifier each time the user authenticates with that third-party via RPX. This gets stored in the DB, along with a `displayname` and `email` address (when available). These go in the corresponding database fields.
+Once the user has authenticated with their choice of provider, RPX will send an identifier back to your site. This gets stored in the database, and is essentially a username (though it is ugly, so the user should never see it or be asked to type it). You'll receive this same identifier each time the user authenticates with that third-party via RPX. This gets stored in the DB, along with a `displayname`, `email` address (when available), and the `provider` that was used for authentication. These go in the corresponding database fields.
 
 When the user is authenticated, a token is stored in the cookie for your site that allows them to stay logged-in until they choose to log out. There is no "Remember Me" checkbox; remembering is the default.
 
@@ -76,7 +76,9 @@ Similarly, to log-out the current user on *all* computers:
 
     $user = Azimauth::instance()->logout(TRUE);
 
-And finally, should it ever be necessary to completely ban a user: use your favorite DB administration tool to find the row in the `user` table and change the `login_enabled` value from 1 to 0. This will make the user unable to login, and will automatically log them out on any other computers they use to access their account. To reinstate them simply change `login_enabled` back to 1.
+Should it ever be necessary to completely ban a user: use your favorite DB administration tool to find the row in the `user` table and change the `is_enabled` value from 1 to 0. This will make the user unable to login, and will automatically log them out on any other computers they use to access their account. To reinstate them simply change `is_enabled` back to 1.
+
+Similarly, you can use the `is_admin` field to mark users that should have administrative privileges. The module doesn't use this in any way; how to act on this property is up to you!
 
 ## A Note on User Models
 
@@ -115,7 +117,9 @@ Here's how you'll get your DB tables set up for this.
     CREATE TABLE `users` (
         `id` int(11) unsigned not null auto_increment,
         `identifier` varchar(255) not null,
-        `login_enabled` tinyint(1) unsigned default '1',
+        `is_enabled` tinyint(1) unsigned default '1',
+        `is_admin` tinyint(1) unsigned default '0',
+        `provider` varchar(25),
         `displayname` varchar(255),
         `email` varchar(255),
         `login_count` int(10) unsigned not null,
