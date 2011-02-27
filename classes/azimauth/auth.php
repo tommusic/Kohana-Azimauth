@@ -49,6 +49,9 @@ class Azimauth_Auth {
 	{
 		$this->config = $config;
 		$this->user = $this->_get_user();
+        if ($this->user->login_enabled != 1) {
+            $this->logout(TRUE);
+        }
     }
 
 	/**
@@ -57,6 +60,28 @@ class Azimauth_Auth {
 	public $user;
 
 	/**
+	 * Takes a string value for a login token and returns a hash of it.
+	 * This is to make it so that a compromised DB doesn't allow access as any user.
+	 *
+	 * @param   string   login token to be stored in the cookie
+	 * @param   string   user identifier as stored in the DB
+	 * @param   string   ID of the user record in the DB
+	 * @return  string  hashed token
+	 */
+    protected function _create_token_hash($token, $identifier, $user_id) {
+        
+        // Hash repeated up to 43 times, depending on user_id.
+        // This increases the universe of differences, and the difficulty of cracking.
+        $iterations = ($user_id % 42) + 1;
+
+		do {
+			$hashed_token = hash_hmac("sha256", $token . $identifier, $this->config['hmac_key']);
+		} while(--$iterations > 0);
+
+        return $hashed_token;
+    }
+    
+	/**
 	 * Checks the cookie for a valid token, and returns the user if applicable.
 	 * Returns a blank user object if no user is currently logged-in.
 	 *
@@ -64,17 +89,21 @@ class Azimauth_Auth {
 	 */
 	protected function _get_user()
 	{
-		$cookie_token = Cookie::get($this->config['cookie_key']);
+		$cookie_identifier = Cookie::get('login_identifier');
+		$cookie_token = Cookie::get('login_token');
 
-		if ($cookie_token) {
-			$token = ORM::factory('user_token', $cookie_token);
-			if ($token->loaded()) {
-				if ($token->user->loaded())	{
-					return $token->user;
-				}
-			}
+		if (($cookie_token) AND ($cookie_identifier)) {
+            $cookie_user = ORM::factory('user', $cookie_identifier);
+            if ($cookie_user->loaded()) {
+                $cookie_token_hash = $this->_create_token_hash($cookie_token, $cookie_identifier, $cookie_user->id);
+    			$token = ORM::factory('user_token', $cookie_token_hash);
+    			if (($token->loaded()) AND ($token->user_agent == sha1(Request::$user_agent))) {
+    				if ($token->user->loaded())	{
+    					return $token->user;
+    				}
+    			}
+            }
 		}
-		
         return ORM::factory('user');
 	}
 
@@ -166,19 +195,28 @@ class Azimauth_Auth {
         // Update the login count for this user, and then create/store a login token.
 		if ($user->loaded())
 		{
-			$user->login_count++;
-			$user->last_login = time();
-			$user->save();
-			$this->user = $user;
+            if ($user->login_enabled == '1') {
+    			$user->login_count++;
+    			$user->last_login = time();
+    			$user->save();
+    			$this->user = $user;
 
-			$token = ORM::factory('user_token');
-			$token->user = $user;
-			$token->expires = time() + $this->config['lifetime'];
-			$token->save();
+    			$token = ORM::factory('user_token');
+    			$token->user = $user;
+    			$token->expires = time() + $this->config['lifetime'];
+        		$token->token = text::random('alnum', 32);
+        		$token->token_hash = $this->_create_token_hash($token->token, $this->user->identifier, $this->user->id);
+			    $token->save();
     		
-			Cookie::set($this->config['cookie_key'], $token->token, $this->config['lifetime']);
+    			Cookie::set('login_identifier', $user->identifier, $this->config['lifetime']);
+    			Cookie::set('login_token', $token->token, $this->config['lifetime']);
 
-            return $this->user;
+                return $this->user;
+            } else {
+                // User has been banned
+                $this->user = ORM::factory('user');
+                return $this->user;
+            }
 		}
 		else
 		{
@@ -198,18 +236,18 @@ class Azimauth_Auth {
 	public function logout($logout_all = FALSE)
 	{
         if ($this->user->loaded()) {
-    		if ($cookie_token = Cookie::get($this->config['cookie_key'])) {
-    			Cookie::delete($this->config['cookie_key']);
-    			$token = ORM::factory('user_token', $cookie_token);
-                if ($token->loaded()) {
-                    if ($logout_all) {
-                        $result = ORM::factory('user_token')
-                                    ->where('identifier', '=', $token->identifier)
-                                    ->delete_all();
-                    } else {
-                        $result = $token->delete();
-                    }
+    		if ($cookie_token = Cookie::get('login_token')) {
+                if ($logout_all) {
+                    $result = ORM::factory('user_token')
+                                ->where('identifier', '=', $this->user->identifier)
+                                ->delete_all();
+                } else {
+                    $cookie_token_hash = $this->_create_token_hash($cookie_token, $this->user->identifier, $this->user->id);
+        			$token = ORM::factory('user_token', $cookie_token_hash);
+        			$token->delete();
                 }
+    			Cookie::delete('login_token');
+    			Cookie::delete('login_identifier');
     		}
             $this->user = ORM::factory('user');
             return $this->user;

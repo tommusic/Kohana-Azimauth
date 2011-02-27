@@ -2,7 +2,7 @@
 
 return array
 (
-	'lifetime' => 1209600,
-	'cookie_key' => 'login_token',
+	'lifetime' => 10368000,
 	'rpx_api_key' => 'API_KEY_GOES_HERE',
+	'hmac_key' => 'HMAC_KEY_GOES_HERE',
 );

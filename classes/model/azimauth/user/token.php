@@ -2,11 +2,15 @@
 
 class Model_Azimauth_User_Token extends ORM {
 
-    protected $_primary_key = 'token';
+    protected $_primary_key = 'token_hash';
 
 	// Relationships
     protected $_belongs_to = array('user' => array('model' => 'user', 'foreign_key' => 'identifier'));
-	
+
+    protected $_ignored_columns = array('token');
+    protected $_created_column = array('column' => 'created', 'format' => TRUE);
+    protected $_updated_column = array('column' => 'updated', 'format' => TRUE);
+    	
 	// Current timestamp
 	protected $_now;
 
@@ -41,13 +45,9 @@ class Model_Azimauth_User_Token extends ORM {
 	{
 		if ($this->loaded() === FALSE)
 		{
-			// Set the created time, token, and hash of the user agent
-			$this->created = $this->_now;
+			// Set the hash of the user agent
 			$this->user_agent = sha1(Request::$user_agent);
 		}
-
-		// Create a new token each time the token is saved
-		$this->token = $this->create_token();
 
 		return parent::save();
 	}
@@ -65,34 +65,6 @@ class Model_Azimauth_User_Token extends ORM {
 			->execute($this->_db);
 
 		return $this;
-	}
-
-	/**
-	 * Finds a new unique token, using a loop to make sure that the token does
-	 * not already exist in the database. This could potentially become an
-	 * infinite loop, but the chances of that happening are very unlikely.
-	 *
-	 * @return  string
-	 */
-	protected function create_token()
-	{
-		while (TRUE)
-		{
-			// Create a random token
-			$token = text::random('alnum', 32);
-
-			// Make sure the token does not already exist
-			$count = DB::select('id')
-				->where('token', '=', $token)
-				->from($this->_table_name)
-				->execute($this->_db)
-				->count();
-			if ($count === 0)
-			{
-				// A unique token has been found
-				return $token;
-			}
-		}
 	}
 
 } // End Azimauth User Token Model
